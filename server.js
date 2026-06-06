@@ -37,30 +37,32 @@ async function initDB() {
 initDB();
 
 // ── POST /api/analyze ─────────────────────────────
+// Uses SSE streaming to avoid Railway's 60-second HTTP timeout
 app.post('/api/analyze', async (req, res) => {
+  const { images, prompt } = req.body;
+  if (!images || !prompt) return res.status(400).json({ error: 'Missing images or prompt' });
+
+  const content = [];
+  for (const img of images.slice(0, 10)) {
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.data }
+    });
+  }
+  content.push({ type: 'text', text: prompt });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Keep connection alive while waiting for Anthropic to start responding
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) res.write(': keepalive\n\n');
+  }, 15000);
+
   try {
-    const { images, prompt } = req.body;
-    if (!images || !prompt) {
-      return res.status(400).json({ error: 'Missing images or prompt' });
-    }
-
-    const content = [];
-
-    // Add images (max 20)
-    for (const img of images.slice(0, 20)) {
-      content.push({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: img.mediaType || 'image/jpeg',
-          data: img.data
-        }
-      });
-    }
-
-    content.push({ type: 'text', text: prompt });
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,38 +72,85 @@ app.post('/api/analyze', async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
+        stream: true,
         system: '你是一位人格分析專家。請只回傳純 JSON，直接從 { 開始，到 } 結束。不可有任何 markdown、程式碼區塊、或 JSON 以外的文字。',
         messages: [{ role: 'user', content }]
       })
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error?.message || `HTTP ${response.status}`);
+    if (!apiRes.ok) {
+      clearInterval(heartbeat);
+      const errData = await apiRes.json().catch(() => ({}));
+      res.write(`data: ${JSON.stringify({ error: errData.error?.message || `HTTP ${apiRes.status}` })}\n\n`);
+      res.end();
+      return;
     }
 
-    const data = await response.json();
-    const fullText = (data.content || [])
-      .filter(c => c.type === 'text')
-      .map(c => c.text)
-      .join('');
+    let fullText = '';
+    let lineBuffer = '';
 
-    // Robust JSON extraction: try direct parse first, then extract by braces
-    let result;
-    try {
-      result = JSON.parse(fullText.trim());
-    } catch (_) {
-      const start = fullText.indexOf('{');
-      const end = fullText.lastIndexOf('}');
-      if (start === -1 || end === -1) throw new Error('回傳格式錯誤，請重試');
-      result = JSON.parse(fullText.substring(start, end + 1));
-    }
+    apiRes.body.on('data', chunk => {
+      lineBuffer += chunk.toString();
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop();
 
-    res.json({ success: true, result });
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            fullText += evt.delta.text;
+          } else if (evt.type === 'message_stop') {
+            clearInterval(heartbeat);
+            let result;
+            try {
+              result = JSON.parse(fullText.trim());
+            } catch (_) {
+              const start = fullText.indexOf('{');
+              const end = fullText.lastIndexOf('}');
+              if (start === -1 || end === -1) {
+                res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
+                res.end();
+                return;
+              }
+              try {
+                result = JSON.parse(fullText.substring(start, end + 1));
+              } catch (e) {
+                res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
+                res.end();
+                return;
+              }
+            }
+            res.write(`data: ${JSON.stringify({ success: true, result })}\n\n`);
+            res.end();
+          }
+        } catch (_) {}
+      }
+    });
+
+    apiRes.body.on('error', err => {
+      clearInterval(heartbeat);
+      console.error('Stream error:', err.message);
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.end();
+      }
+    });
+
+    apiRes.body.on('end', () => {
+      clearInterval(heartbeat);
+      if (!res.writableEnded) res.end();
+    });
 
   } catch (err) {
+    clearInterval(heartbeat);
     console.error('Analyze error:', err.message);
-    res.status(500).json({ error: err.message });
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    }
   }
 });
 
