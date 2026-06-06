@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Observer · IG 人物側寫</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #fafafa;
+  --white: #ffffff;
+  --ink: #0a0a0a;
+  --muted: #737373;
+  --border: #dbdbdb;
+  --border-light: #efefef;
+  --accent: #0095f6;
+  --accent-dark: #00376b;
+  --red: #ed4956;
+  --gold: #e6a817;
+  --green: #25c15e;
+  --story-grad: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+html,body { background: var(--bg); color: var(--ink); font-family: -apple-system, 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+/* ============ TOP BAR ============ */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: 44px;
+}
+.topbar-logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.topbar-action { font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer; padding: 8px 0; }
+.topbar-action:hover { color: var(--accent-dark); }
+
+/* ============ BOTTOM NAV ============ */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--white); border-top: 1px solid var(--border);
+  display: flex; height: 49px; padding-bottom: env(safe-area-inset-bottom);
+}
+.bnav-item {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0.4; transition: opacity 0.15s;
+}
+.bnav-item svg { width: 24px; height: 24px; }
+.bnav-item.active { opacity: 1; }
+.bnav-item:hover { opacity: 0.75; }
+
+/* ============ PAGES ============ */
+.container { max-width: 470px; margin: 0 auto; padding: 0 0 80px; }
+.page { display: none; animation: fadeUp 0.25s ease both; }
+.page.active { display: block; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+/* FIX Bug2: missing spin keyframe */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ============ PROFILE SETUP ============ */
+.profile-setup {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 16px 0;
+}
+.ps-avatar-row {
+  display: flex; gap: 24px; align-items: center; margin-bottom: 16px;
+}
+.ps-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366);
+  padding: 2px; flex-shrink: 0; cursor: pointer; position: relative;
+}
+/* FIX Bug3: avatar upload hint on hover */
+.ps-avatar:hover::after {
+  content: '換頭像'; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,0,0,0.45); color: white;
+  font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.ps-avatar-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: var(--white); display: flex;
+  align-items: center; justify-content: center;
+  overflow: hidden; border: 2px solid var(--white);
+}
+.ps-stats { flex: 1; display: flex; justify-content: space-around; }
+.ps-stat { text-align: center; }
+.ps-stat-num {
+  font-size: 17px; font-weight: 600; line-height: 1.2;
+  display: block;
+}
+.ps-stat-num input {
+  width: 72px; font-size: 17px; font-weight: 600;
+  border: none; text-align: center; background: transparent;
+  outline: none; color: var(--ink);
+  border-bottom: 1.5px solid var(--border);
+  padding: 2px 0;
+}
+.ps-stat-num input:focus { border-bottom-color: var(--accent); }
+.ps-stat-lbl { font-size: 12px; color: var(--ink); margin-top: 2px; display: block; }
+
+.ps-name-row { margin-bottom: 10px; }
+.ps-displayname-input {
+  width: 100%; font-size: 15px; font-weight: 700;
+  border: none; outline: none; background: transparent;
+  padding: 2px 0; color: var(--ink);
+}
+.ps-displayname-input::placeholder { color: #c7c7c7; font-weight: 400; }
+.ps-handle-wrap {
+  display: flex; align-items: center; gap: 2px;
+  margin-top: 1px; margin-bottom: 6px;
+}
+.ps-handle-at { font-size: 14px; color: var(--ink); font-weight: 400; flex-shrink: 0; }
+.ps-handle-input {
+  flex: 1; font-size: 14px; color: var(--ink);
+  border: none; outline: none; background: transparent;
+  padding: 2px 0;
+}
+.ps-handle-input::placeholder { color: #c7c7c7; }
+.ps-bio-input {
+  width: 100%; font-size: 13px; line-height: 1.5;
+  border: none; outline: none; background: transparent;
+  resize: none; min-height: 48px; padding: 4px 0;
+  font-family: -apple-system, 'Inter', sans-serif;
+}
+
+.ps-tabs {
+  display: flex; border-top: 1px solid var(--border); margin-top: 12px;
+}
+.ps-tab {
+  flex: 1; height: 44px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); border-top: 2px solid transparent;
+  margin-top: -1px; transition: all 0.15s;
+}
+.ps-tab.active { color: var(--ink); border-top-color: var(--ink); }
+
+/* ============ UPLOAD SECTION ============ */
+.upload-section { background: var(--white); margin-top: 8px; padding: 16px; }
+.upload-label { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.upload-label span { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--accent);
+  background: #f0f9ff;
+}
+.upload-zone:hover .upload-zone-icon-svg circle,
+.upload-zone.dragover .upload-zone-icon-svg circle { stroke: var(--accent); }
+.upload-zone:hover .upload-zone-icon-svg path,
+.upload-zone:hover .upload-zone-icon-svg polyline,
+.upload-zone.dragover .upload-zone-icon-svg path,
+.upload-zone.dragover .upload-zone-icon-svg polyline { stroke: var(--accent); }
+.upload-zone-icon-svg { display: block; margin: 0 auto 12px; width: 48px; height: 48px; }
+.upload-zone-icon-svg circle, .upload-zone-icon-svg path,
+.upload-zone-icon-svg polyline, .upload-zone-icon-svg rect { transition: stroke 0.2s; }
+.upload-zone-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--ink); }
+.upload-zone-sub { font-size: 12px; color: var(--muted); }
+
+.grid-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px; margin-top: 10px;
+}
+.grid-cell {
+  aspect-ratio: 1; background: var(--border-light);
+  background-size: cover; background-position: center;
+  position: relative; overflow: hidden;
+}
+.grid-cell-add {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px;
+  cursor: pointer;
+  border: 1.5px dashed var(--border); border-radius: 2px;
+  background: var(--bg); transition: all 0.15s;
+}
+.grid-cell-add:hover { background: #f0f9ff; border-color: var(--accent); }
+.grid-cell-add:hover svg path, .grid-cell-add:hover svg circle { stroke: var(--accent); }
+.grid-cell-add svg path, .grid-cell-add svg circle { transition: stroke 0.15s; }
+.grid-cell-add-label { font-size: 10px; color: var(--muted); font-weight: 500; }
+.grid-cell-num {
+  position: absolute; bottom: 4px; right: 4px;
+  background: rgba(0,0,0,0.6); color: white;
+  font-size: 10px; padding: 1px 5px; border-radius: 10px;
+}
+.grid-cell-rm {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,0.5); color: white;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; opacity: 0; transition: opacity 0.15s; cursor: pointer;
+}
+.grid-cell:hover .grid-cell-rm { opacity: 1; }
+.upload-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 6px; }
+
+/* ============ BIRTH SECTION ============ */
+.birth-section { background: var(--white); margin-top: 8px; padding: 16px; }
+.birth-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+}
+.birth-toggle-label { font-size: 14px; font-weight: 600; }
+.birth-toggle-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.toggle-switch {
+  width: 51px; height: 31px; background: var(--border);
+  border-radius: 99px; position: relative; transition: background 0.2s; cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-switch.on { background: var(--green); }
+.toggle-switch::after {
+  content: ''; position: absolute;
+  width: 27px; height: 27px; background: white;
+  border-radius: 50%; top: 2px; left: 2px;
+  transition: transform 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.toggle-switch.on::after { transform: translateX(20px); }
+
+.birth-fields {
+  display: none; margin-top: 16px;
+  border-top: 1px solid var(--border-light); padding-top: 14px;
+}
+.birth-fields.visible { display: block; }
+.birth-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.birth-field { margin-bottom: 12px; }
+.birth-field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+.birth-field input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; font-size: 14px;
+  outline: none; transition: border-color 0.15s;
+}
+.birth-field input:focus { border-color: var(--accent); }
+
+/* ============ OPTIONS SECTION ============ */
+.options-section { background: var(--white); margin-top: 8px; padding: 16px; }
+.options-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.option-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+.option-row:last-child { border-bottom: none; }
+.option-icon { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.option-icon svg { width: 24px; height: 24px; }
+.option-body { flex: 1; }
+.option-title { font-size: 14px; font-weight: 500; }
+.option-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.option-check {
+  width: 24px; height: 24px; border: 2px solid var(--border);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.15s;
+}
+.option-check.checked { background: var(--accent); border-color: var(--accent); }
+.option-check.checked::after { content: '✓'; color: white; font-size: 13px; font-weight: 700; }
+
+/* ============ ANALYZE BUTTON ============ */
+.analyze-btn-wrap { padding: 16px; background: var(--white); margin-top: 8px; }
+.analyze-btn {
+  width: 100%; padding: 14px;
+  background: var(--accent); color: white;
+  border: none; border-radius: 10px; cursor: pointer;
+  font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.15s;
+}
+.analyze-btn:hover { background: var(--accent-dark); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error-msg {
+  background: #fff0f1;
+  border-left: 3px solid var(--red);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--red);
+  margin: 0 16px 8px;
+  display: none;
+  animation: slideDown 0.2s ease;
+}
+.error-msg.active { display: flex; align-items: center; gap: 8px; }
+.error-msg-icon { font-size: 16px; flex-shrink: 0; }
+.error-msg-text { flex: 1; line-height: 1.4; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============ ANIMATION OVERLAY ============ */
+.anim-overlay {
+  position: fixed; inset: 0; z-index: 200; display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: #0a0a0f; overflow: hidden;
+}
+.anim-overlay.active { display: flex; }
+
+.anim-bg { position: absolute; inset: 0; overflow: hidden; }
+.anim-orb {
+  position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.18;
+}
+.anim-orb-1 {
+  width: 300px; height: 300px; background: #0095f6;
+  top: -80px; left: -80px;
+  animation: orbFloat1 6s ease-in-out infinite;
+}
+.anim-orb-2 {
+  width: 250px; height: 250px; background: #bc1888;
+  bottom: -60px; right: -60px;
+  animation: orbFloat2 7s ease-in-out infinite;
+}
+.anim-orb-3 {
+  width: 180px; height: 180px; background: #f09433;
+  top: 40%; left: 50%; transform: translate(-50%,-50%);
+  animation: orbFloat3 5s ease-in-out infinite;
+}
+@keyframes orbFloat1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(40px,30px) scale(1.15);} }
+@keyframes orbFloat2 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-30px,-40px) scale(1.1);} }
+@keyframes orbFloat3 { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.12;} 50%{transform:translate(-50%,-50%) scale(1.3);opacity:0.22;} }
+
+.anim-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(0,149,246,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,149,246,0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.anim-stage {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%; max-width: 320px; padding: 0 20px;
+}
+
+.anim-lens {
+  width: 120px; height: 120px; position: relative; margin-bottom: 32px;
+}
+.anim-lens-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(0,149,246,0.4);
+  animation: lensRing 2s ease-in-out infinite;
+}
+.anim-lens-ring:nth-child(2) {
+  inset: 12px; border-color: rgba(188,24,136,0.4);
+  animation-delay: 0.3s; animation-duration: 2.4s;
+}
+.anim-lens-ring:nth-child(3) {
+  inset: 24px; border-color: rgba(240,148,51,0.4);
+  animation-delay: 0.6s; animation-duration: 1.8s;
+}
+@keyframes lensRing { 0%,100%{transform:scale(1);opacity:0.4;} 50%{transform:scale(1.08);opacity:1;} }
+
+.anim-lens-core {
+  position: absolute; inset: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, #0095f6, #bc1888);
+  display: flex; align-items: center; justify-content: center;
+  animation: lensCore 2s ease-in-out infinite;
+}
+@keyframes lensCore { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+
+.anim-scan {
+  position: absolute; left: 0; right: 0; height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(0,255,255,0.8), transparent);
+  top: 50%; transform: translateY(-50%);
+  animation: scanMove 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes scanMove {
+  0% { clip-path: inset(0 0 0 0); top: 10%; }
+  50% { top: 90%; }
+  100% { top: 10%; }
+}
+
+.anim-progress-ring { position: absolute; inset: -8px; }
+.anim-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.anim-ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 2; }
+.anim-ring-fill {
+  fill: none; stroke: url(#ringGrad); stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 345;
+  stroke-dashoffset: 345;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.anim-handle { font-size: 16px; font-weight: 700; color: white; margin-bottom: 8px; letter-spacing: 0.5px; }
+.anim-typing {
+  font-family: 'Fraunces', serif; font-style: italic;
+  font-size: 15px; color: rgba(255,255,255,0.7);
+  text-align: center; min-height: 44px; line-height: 1.5;
+}
+.anim-typing::after { content: '|'; animation: blink 0.7s infinite; color: #0095f6; margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.anim-chips {
+  display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; justify-content: center;
+}
+.anim-chip {
+  font-size: 10px; padding: 4px 10px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.4s ease;
+}
+.anim-chip.lit { border-color: #0095f6; color: #0095f6; background: rgba(0,149,246,0.1); }
+
+.anim-progress-bar-wrap {
+  position: absolute; bottom: 40px; left: 40px; right: 40px; z-index: 2;
+}
+.anim-progress-bar { height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.anim-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #0095f6, #bc1888);
+  width: 0%; border-radius: 2px; transition: width 0.5s ease;
+}
+.anim-progress-label {
+  font-size: 10px; color: rgba(255,255,255,0.3); text-align: center;
+  margin-top: 8px; font-family: 'JetBrains Mono', monospace; letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.anim-skip {
+  position: absolute; bottom: 80px; right: 20px; z-index: 10;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.5); padding: 7px 16px; border-radius: 20px;
+  font-size: 12px; cursor: pointer; letter-spacing: 0.5px;
+}
+.anim-skip:hover { background: rgba(255,255,255,0.15); color: white; }
+
+/* ============ REPORT PAGE ============ */
+.rp-header { background: var(--white); border-bottom: 1px solid var(--border); }
+.rp-header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+}
+.rp-back { font-size: 22px; cursor: pointer; padding: 4px; }
+.rp-title { font-size: 16px; font-weight: 600; flex: 1; text-align: center; }
+.rp-actions { display: flex; gap: 14px; }
+.rp-action { font-size: 22px; cursor: pointer; }
+
+.rp-profile { background: var(--white); padding: 20px 16px 12px; }
+.rp-prof-row { display: flex; gap: 24px; align-items: center; margin-bottom: 12px; }
+.rp-avatar {
+  width: 86px; height: 86px; border-radius: 50%;
+  background: var(--story-grad); padding: 2.5px;
+  flex-shrink: 0;
+}
+.rp-avatar-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: #e8e8e8; border: 2.5px solid var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px; overflow: hidden;
+}
+.rp-stats { flex: 1; display: flex; justify-content: space-around; }
+.rp-stat { text-align: center; }
+.rp-stat-num { font-size: 17px; font-weight: 700; display: block; }
+.rp-stat-lbl { font-size: 12px; color: var(--ink); display: block; margin-top: 1px; }
+.rp-name { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+.rp-tagline { font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.rp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rp-tag { font-size: 12px; font-weight: 500; color: var(--accent); }
+.rp-tag::before { content: '·'; margin-right: 4px; }
+
+.rp-btns { display: flex; gap: 6px; margin-top: 12px; margin-bottom: 4px; }
+.rp-btn {
+  flex: 1; padding: 7px 4px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; border: 1px solid var(--border);
+  background: var(--border-light); text-align: center; cursor: pointer;
+}
+.rp-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+
+.rp-stories { padding: 12px 0 0; border-top: 1px solid var(--border); }
+.rp-stories-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 4px 16px 12px; scrollbar-width: none; }
+.rp-stories-scroll::-webkit-scrollbar { display: none; }
+.story-item { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; cursor: pointer; }
+.story-ring { width: 66px; height: 66px; border-radius: 50%; background: var(--story-grad); padding: 2px; }
+.story-ring.seen { background: var(--border); }
+.story-ring-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--white);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink);
+}
+.story-ring-inner svg { width: 28px; height: 28px; }
+.story-name { font-size: 11px; color: var(--ink); text-align: center; max-width: 66px; word-break: break-word; line-height: 1.3; }
+
+/* Card style */
+.rp-card {
+  background: var(--white); margin: 8px 0;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 16px;
+}
+.rp-card + .rp-card { margin-top: 0; border-top: none; }
+.card-section-label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+.card-big-value { font-size: 28px; font-weight: 700; margin-bottom: 2px; }
+.card-big-sub { font-size: 14px; font-style: italic; font-family: 'Fraunces', serif; color: var(--muted); margin-bottom: 12px; }
+.card-body { font-size: 13px; line-height: 1.7; color: #3d3d3d; }
+
+/* MBTI bars */
+.mbti-pair { margin-bottom: 12px; }
+.mbti-labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.mbti-labels .hi { color: var(--ink); }
+.mbti-track { height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden; }
+.mbti-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+.chart-wrap { position: relative; height: 220px; margin: 8px 0; }
+
+.att-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.att-label { font-size: 12px; color: var(--muted); width: 60px; flex-shrink: 0; }
+.att-track { flex: 1; height: 8px; background: var(--border-light); border-radius: 4px; overflow: hidden; }
+.att-fill { height: 100%; border-radius: 4px; }
+.att-val { font-size: 12px; font-weight: 600; width: 32px; text-align: right; flex-shrink: 0; }
+
+.career-rec { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+.career-rec:last-child { border-bottom: none; }
+.career-arrow { color: var(--accent); font-weight: 700; flex-shrink: 0; padding-top: 1px; }
+.career-rec-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.career-rec-desc { font-size: 12px; color: #555; line-height: 1.6; }
+
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.tag-pill { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: var(--border-light); color: var(--ink); font-weight: 500; }
+
+.astro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 10px 0; }
+.astro-cell { background: var(--white); padding: 10px 12px; }
+.astro-cell-k { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+.astro-cell-v { font-size: 14px; font-weight: 600; }
+
+.essay-card {
+  background: var(--ink); color: white;
+  margin: 8px 0; padding: 20px 16px;
+}
+.essay-kicker { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; }
+.essay-text { font-family: 'Fraunces', serif; font-size: 16px; line-height: 1.75; color: rgba(255,255,255,0.9); white-space: pre-wrap; }
+
+.summary-card {
+  background: white; margin: 8px 0;
+  border-top: 3px solid var(--ink); border-bottom: 1px solid var(--border);
+  padding: 20px 16px;
+}
+.summary-headline { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; line-height: 1.3; margin-bottom: 10px; }
+.summary-body { font-size: 13px; line-height: 1.7; color: #3d3d3d; white-space: pre-wrap; }
+.summary-rec-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dotted var(--border); }
+.summary-rec-num { font-size: 16px; font-weight: 700; color: var(--accent); flex-shrink: 0; width: 22px; }
+.summary-rec-t { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.summary-rec-d { font-size: 12px; color: #555; line-height: 1.5; }
+
+/* ============ HISTORY ============ */
+.hist-list-item {
+  background: var(--white); display: flex; align-items: center;
+  gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.hist-list-item:hover { background: var(--bg); }
+.hist-item-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--story-grad); padding: 2px; flex-shrink: 0;
+}
+.hist-item-avatar-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: #e8e8e8; border: 2px solid var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; overflow: hidden;
+}
+.hist-item-body { flex: 1; min-width: 0; }
+.hist-item-handle { font-size: 14px; font-weight: 600; }
+.hist-item-snippet { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; font-style: italic; }
+.hist-item-tags { display: flex; gap: 4px; margin-top: 4px; }
+.hist-item-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--border-light); color: var(--muted); }
+.hist-item-right { text-align: right; flex-shrink: 0; }
+.hist-item-date { font-size: 11px; color: var(--muted); }
+.hist-item-del { font-size: 18px; color: var(--muted); cursor: pointer; margin-top: 6px; display: block; }
+
+.hist-search {
+  background: var(--white); padding: 8px 16px;
+  border-bottom: 1px solid var(--border); position: sticky; top: 44px; z-index: 5;
+}
+.hist-search input {
+  width: 100%; background: var(--border-light); border: none; border-radius: 10px;
+  padding: 8px 14px; font-size: 14px; outline: none;
+}
+
+/* ============ COMPARE ============ */
+.compare-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 16px; background: var(--white); border-bottom: 1px solid var(--border); }
+.compare-picker { background: var(--border-light); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.compare-picker label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 5px; }
+.compare-picker select { width: 100%; border: none; background: transparent; font-size: 13px; outline: none; }
+.compare-row-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.compare-cell { padding: 10px 12px; border-bottom: 1px solid var(--border-light); border-right: 1px solid var(--border-light); }
+.compare-cell:nth-child(even) { border-right: none; }
+.compare-cell-k { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+.compare-cell-v { font-size: 13px; font-weight: 600; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; min-height: 48px; }
+.empty-state-title { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.empty-state-sub { font-size: 14px; }
+
+@media print {
+  .topbar, .bottom-nav, .analyze-btn-wrap, .rp-btns { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">Observer</div>
+  <div class="topbar-action" onclick="resetAndStart()">+ 新側寫</div>
+</div>
+
+<div class="container">
+
+<!-- ============ MAIN PAGE ============ -->
+<div class="page active" id="page-main">
+
+  <div class="profile-setup">
+    <div class="ps-avatar-row">
+      <!-- FIX Bug3: avatar click handler -->
+      <div class="ps-avatar" onclick="document.getElementById('avatarInput').click()">
+        <div class="ps-avatar-inner" id="avatarPreview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="width:52%;height:52%;"><circle cx="12" cy="8.5" r="3.5"/><path d="M4.5 20.5c0-4 3.3-7 7.5-7s7.5 3 7.5 7"/></svg>
+        </div>
+      </div>
+      <div class="ps-stats">
+        <div class="ps-stat">
+          <span class="ps-stat-num"><input type="text" id="posts" placeholder="—" inputmode="numeric"></span>
+          <span class="ps-stat-lbl">貼文</span>
+        </div>
+        <div class="ps-stat">
+          <span class="ps-stat-num"><input type="text" id="followers" placeholder="—" inputmode="numeric"></span>
+          <span class="ps-stat-lbl">粉絲</span>
+        </div>
+        <div class="ps-stat">
+          <span class="ps-stat-num"><input type="text" id="following" placeholder="—" inputmode="numeric"></span>
+          <span class="ps-stat-lbl">追蹤中</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ps-name-row">
+      <input class="ps-displayname-input" id="displayName" placeholder="顯示名稱">
+      <div class="ps-handle-wrap">
+        <span class="ps-handle-at">@</span>
+        <input class="ps-handle-input" id="handle" placeholder="帳號名稱（必填）" autocorrect="off" autocapitalize="none" spellcheck="false">
+      </div>
+      <textarea class="ps-bio-input" id="bio" placeholder="個人簡介..." rows="2"></textarea>
+    </div>
+
+    <div class="ps-tabs">
+      <div class="ps-tab active" onclick="switchMainTab('photos')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <rect x="3" y="3" width="7" height="7" rx="0.5"/><rect x="14" y="3" width="7" height="7" rx="0.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="0.5"/><rect x="14" y="14" width="7" height="7" rx="0.5"/>
+        </svg>
+      </div>
+      <div class="ps-tab" onclick="switchMainTab('reels')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+      </div>
+      <div class="ps-tab" onclick="switchMainTab('tagged')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <circle cx="12" cy="10" r="4"/><path d="M6 21v-1a6 6 0 0112 0v1"/><path d="M16 6l2 2-2 2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="upload-section" id="tab-photos">
+    <div class="upload-label">上傳截圖 <span>貼文、限動、洞察等（最多 50 張，送出前 20 張）</span></div>
+    <div class="upload-zone" id="uploadZone">
+      <svg class="upload-zone-icon-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="13" width="40" height="28" rx="5" stroke="#c7c7c7" stroke-width="2.2" fill="none"/>
+        <circle cx="24" cy="27" r="8.5" stroke="#c7c7c7" stroke-width="2.2" fill="none"/>
+        <circle cx="24" cy="27" r="3.5" stroke="#c7c7c7" stroke-width="2" fill="none"/>
+        <path d="M16 13 L18.5 7 H29.5 L32 13" stroke="#c7c7c7" stroke-width="2.2" stroke-linejoin="round" fill="none"/>
+        <circle cx="38" cy="20" r="2" fill="#c7c7c7"/>
+        <path d="M24 35 V44 M20 40 L24 44 L28 40" stroke="#c7c7c7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="upload-zone-title">選取圖片</div>
+      <div class="upload-zone-sub">點擊上傳或拖入 · 越多越準確</div>
+    </div>
+    <!-- Hidden file inputs -->
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+    <input type="file" id="avatarInput" accept="image/*" style="display:none">
+    <div class="grid-preview" id="gridPreview"></div>
+    <div class="upload-count" id="uploadCount"></div>
+  </div>
+
+  <div class="upload-section" id="tab-reels" style="display:none;">
+    <div class="empty-state" style="padding:40px 20px;">
+      <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="48" height="48"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M8 6V4M16 6V4M2 10h20"/><polygon points="10,13.5 15,16 10,18.5" fill="#c7c7c7" stroke="none"/></svg></div>
+      <div style="font-size:14px;color:var(--muted);">Reels 截圖請在上方「貼文截圖」區塊上傳</div>
+    </div>
+  </div>
+
+  <div class="upload-section" id="tab-tagged" style="display:none;">
+    <div class="empty-state" style="padding:40px 20px;">
+      <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="48" height="48"><circle cx="12" cy="9" r="4"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M17 5l2 2-2 2"/></svg></div>
+      <div style="font-size:14px;color:var(--muted);">被標記截圖請在上方「貼文截圖」區塊上傳</div>
+    </div>
+  </div>
+
+  <!-- Birth toggle -->
+  <div class="birth-section">
+    <div class="birth-toggle" onclick="toggleBirth()">
+      <div>
+        <div class="birth-toggle-label" style="display:flex;align-items:center;gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          加入命盤分析
+        </div>
+        <div class="birth-toggle-sub">提供出生資料，加入星盤 / 紫微 / 八字</div>
+      </div>
+      <div class="toggle-switch" id="birthToggle"></div>
+    </div>
+    <div class="birth-fields" id="birthFields">
+      <div class="birth-field-row">
+        <div class="birth-field">
+          <label>出生日期</label>
+          <input type="date" id="birthDate">
+        </div>
+        <div class="birth-field">
+          <label>出生時間</label>
+          <input type="time" id="birthTime">
+        </div>
+      </div>
+      <div class="birth-field">
+        <label>出生地點</label>
+        <input type="text" id="birthPlace" placeholder="台北市">
+      </div>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <div class="options-section">
+    <div class="options-title">分析項目</div>
+    <div id="optionsList">
+      <div class="option-row" onclick="toggleOpt(this,'mbti')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"/><path d="M6 21v-1a6 6 0 0112 0v1"/><path d="M9 14h6M9 17h4"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">MBTI 16型人格</div><div class="option-desc">從文字節奏、社交模式判斷</div></div>
+        <div class="option-check checked" data-val="mbti"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'zodiac')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/><path d="M8 8l2 2M14 14l2 2M8 16l2-2M14 10l2-2"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">星座推測</div><div class="option-desc">從生活風格反推 / 若有生日則直接判定</div></div>
+        <div class="option-check checked" data-val="zodiac"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'enneagram')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,3 21,9 17.5,20 6.5,20 3,9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v4M21 9l-3.5 2.5M17.5 20l-3-3M6.5 20l3-3M3 9l3.5 2.5"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">九型人格</div><div class="option-desc">核心驅動力與恐懼</div></div>
+        <div class="option-check checked" data-val="enneagram"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'attachment')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">愛情/依附風格</div><div class="option-desc">安全 / 焦慮 / 迴避</div></div>
+        <div class="option-check checked" data-val="attachment"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'money')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.1.9-2 2.5-2s2.5.9 2.5 2-1.1 2-2.5 2-2.5.9-2.5 2 .9 2 2.5 2 2.5-.9 2.5-2"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">金錢觀 / 消費型態</div><div class="option-desc">體驗派 vs 物質派</div></div>
+        <div class="option-check checked" data-val="money"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'career')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H3M21 21V7l-9-4-9 4v14"/><path d="M9 21v-6h6v6"/><path d="M12 3v4"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">職涯方向建議</div><div class="option-desc">優勢、盲點、未來方向</div></div>
+        <div class="option-check checked" data-val="career"></div>
+      </div>
+      <div class="option-row" onclick="toggleOpt(this,'summary')">
+        <div class="option-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#737373" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+        </div>
+        <div class="option-body"><div class="option-title">綜合分析與建議</div><div class="option-desc">所有面向交叉整合</div></div>
+        <div class="option-check checked" data-val="summary"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorBox">
+    <span class="error-msg-icon">⚠️</span>
+    <span class="error-msg-text" id="errorText"></span>
+  </div>
+
+  <div class="analyze-btn-wrap">
+    <button class="analyze-btn" id="analyzeBtn" onclick="startAnalysis()">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" width="20" height="20"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>
+      <span>開始分析</span>
+    </button>
+  </div>
+
+</div><!-- /page-main -->
+
+<!-- ============ HISTORY PAGE ============ -->
+<div class="page" id="page-history">
+  <div class="hist-search">
+    <input type="text" id="searchInput" placeholder="🔍  搜尋帳號、MBTI、星座...">
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<!-- ============ COMPARE PAGE ============ -->
+<div class="page" id="page-compare">
+  <div class="compare-pickers">
+    <div class="compare-picker">
+      <label>SUBJECT A</label>
+      <select id="compareA"><option value="">— 選擇 —</option></select>
+    </div>
+    <div class="compare-picker">
+      <label>SUBJECT B</label>
+      <select id="compareB"><option value="">— 選擇 —</option></select>
+    </div>
+  </div>
+  <div style="padding: 0 16px 16px; background: var(--white); border-bottom: 1px solid var(--border);">
+    <button class="analyze-btn" onclick="runCompare()">並排比對 →</button>
+  </div>
+  <div id="compareOutput"></div>
+</div>
+
+<!-- ============ REPORT PAGE ============ -->
+<div class="page" id="page-report">
+  <div id="reportContent"></div>
+</div>
+
+</div><!-- /container -->
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="bnav-item active" data-page="main" onclick="switchPage('main')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/>
+      <path d="M9 21V12h6v9"/>
+    </svg>
+  </div>
+  <div class="bnav-item" data-page="history" onclick="switchPage('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  </div>
+  <div class="bnav-item" data-page="compare" onclick="switchPage('compare')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+  </div>
+</div>
+
+<!-- ANIMATION OVERLAY -->
+<div class="anim-overlay" id="animOverlay">
+  <div class="anim-bg">
+    <div class="anim-orb anim-orb-1"></div>
+    <div class="anim-orb anim-orb-2"></div>
+    <div class="anim-orb anim-orb-3"></div>
+    <div class="anim-grid"></div>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute;">
+    <defs>
+      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#0095f6"/>
+        <stop offset="100%" stop-color="#bc1888"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="anim-stage">
+    <div class="anim-lens">
+      <svg class="anim-ring-svg anim-progress-ring" viewBox="0 0 136 136">
+        <circle class="anim-ring-track" cx="68" cy="68" r="65"/>
+        <circle class="anim-ring-fill" id="ringFill" cx="68" cy="68" r="65"/>
+      </svg>
+      <div class="anim-lens-ring"></div>
+      <div class="anim-lens-ring"></div>
+      <div class="anim-lens-ring"></div>
+      <div class="anim-lens-core"><span style="font-size:28px;">👁</span></div>
+      <div class="anim-scan"></div>
+    </div>
+
+    <div class="anim-handle" id="animHandle">@r.y.37</div>
+    <div class="anim-typing" id="animTyping"></div>
+
+    <div class="anim-chips" id="animChips">
+      <div class="anim-chip" id="chip-mbti">MBTI</div>
+      <div class="anim-chip" id="chip-zodiac">星座</div>
+      <div class="anim-chip" id="chip-enn">九型</div>
+      <div class="anim-chip" id="chip-att">依附</div>
+      <div class="anim-chip" id="chip-money">金錢</div>
+      <div class="anim-chip" id="chip-career">職涯</div>
+    </div>
+  </div>
+
+  <div class="anim-progress-bar-wrap">
+    <div class="anim-progress-bar">
+      <div class="anim-progress-fill" id="animProgressFill"></div>
+    </div>
+    <div class="anim-progress-label" id="animProgressLabel">INITIALIZING</div>
+  </div>
+
+  <button class="anim-skip" onclick="skipAnimation()">跳過</button>
+</div>
+
+<script>
+// ============ PROMPT BUILDER ============
+function buildPrompt(data) {
+  const opts = data.options;
+  let s = [];
+  s.push('你是一位融合心理學、占星、命理、人格類型學的觀察者。我提供 Instagram 帳號 @' + data.handle + ' 的截圖與基本資料，請建立完整人物側寫。');
+  s.push('\n## 已知資料');
+  if (data.displayName) s.push('- 顯示名稱：' + data.displayName);
+  s.push('- 帳號：@' + data.handle);
+  if (data.bio) s.push('- 自介：' + data.bio.replace(/\n/g,' / '));
+  if (data.followers) s.push('- 粉絲：' + data.followers);
+  if (data.posts) s.push('- 貼文數：' + data.posts);
+  if (data.following) s.push('- 追蹤中：' + data.following);
+  if (data.birthDate) {
+    s.push('- 出生日期：' + data.birthDate);
+    if (data.birthTime) s.push('- 出生時間：' + data.birthTime);
+    if (data.birthPlace) s.push('- 出生地：' + data.birthPlace);
+  }
+  s.push('\n## 任務');
+  s.push('仔細閱讀附上截圖（畫面、文字、構圖、氛圍、觀看數、按讚留言）。以繁體中文回應，嚴格使用以下 JSON 格式（直接從 { 開始）：\n{');
+  s.push('"handle":"' + data.handle + '","tagline":"一句話定性這個人","personality_tags":["3-5個短語"],"visual_style":"200字視覺品味描述","content_themes":["軸線1","軸線2","軸線3"],');
+  if(opts.mbti) s.push('"mbti":{"type":"如INFP","name":"中文名","ei":50,"sn":50,"tf":50,"jp":50,"reasoning":"120-180字"},');
+  if(opts.zodiac) s.push('"zodiac":{"primary_guess":"'+(data.birthDate?'依出生日期':'從風格反推')+'","secondary_guess":"次要","element":"火/土/風/水","quality":"本位/固定/變動","reasoning":"120-180字"},');
+  if(opts.enneagram) s.push('"enneagram":{"type":"1-9","name":"中文名","wing":"如4w5","core_motivation":"核心驅動","core_fear":"核心恐懼","reasoning":"120-180字"},');
+  if(opts.attachment) s.push('"attachment":{"style":"安全/焦慮/迴避/混亂型","score_secure":50,"score_anxious":30,"score_avoidant":20,"reasoning":"120-180字"},');
+  if(opts.money) s.push('"money":{"type":"消費型態","experience_vs_material":60,"planner_vs_impulse":40,"saver_vs_spender":45,"value_keywords":["3-5關鍵字"],"reasoning":"120-180字"},');
+  if(data.birthDate && data.birthDate.length > 0) s.push('"astro":{"has_data":true,"western_sun":"太陽星座","western_rising":"上升","western_moon":"月亮","ziwei_main":"紫微主星","bazi_day_master":"八字日主","five_elements":"五行偏盛偏衰","cross_reading":"200-300字命盤與IG交叉"},');
+  else s.push('"astro":{"has_data":false},');
+  if(opts.career) s.push('"career":{"current_read":"職涯觀察","strengths":["優勢1","優勢2","優勢3"],"blind_spots":["盲點1","盲點2"],"recommendations":[{"title":"方向","desc":"說明"},{"title":"方向","desc":"說明"},{"title":"方向","desc":"說明"}]},');
+  s.push('"humanistic_essay":"250-400字人文觀察，像跟朋友聊這個人，可\\\\n\\\\n分段"' + (opts.summary?',':''));
+  if(opts.summary) s.push('"grand_summary":{"headline":"一句話總結","body":"300-450字綜合分析","key_recommendations":[{"title":"建議","desc":"100字內"},{"title":"建議","desc":"100字內"},{"title":"建議","desc":"100字內"}]}');
+  s.push('}');
+  return s.join('\n');
+}
+
+// ============ STATE ============
+let uploadedImages = [];
+let avatarDataUrl = null;   // FIX Bug3/6: store avatar
+let charts = {};
+let animTimers = [];
+let birthOn = false;
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', () => {
+  const uz = document.getElementById('uploadZone');
+  const fi = document.getElementById('fileInput');
+  uz.addEventListener('click', () => fi.click());
+  fi.addEventListener('change', e => handleFiles(e.target.files));
+  uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragover'); });
+  uz.addEventListener('dragleave', () => uz.classList.remove('dragover'));
+  uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+  // FIX Bug3: avatar file input listener
+  const ai = document.getElementById('avatarInput');
+  ai.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f);
+    });
+    avatarDataUrl = dataUrl;
+    document.getElementById('avatarPreview').innerHTML =
+      `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    // Reset input so same file can be re-selected
+    ai.value = '';
+  });
+
+  document.getElementById('searchInput').addEventListener('input', e => renderHistory(e.target.value));
+  renderHistory(); populateCompareSelects();
+});
+
+// ============ TAB & NAV ============
+function switchPage(name) {
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'compare') populateCompareSelects();
+  window.scrollTo(0, 0);
+}
+
+function switchMainTab(tab) {
+  ['photos','reels','tagged'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.ps-tab').forEach((el, i) => {
+    el.classList.toggle('active', ['photos','reels','tagged'][i] === tab);
+  });
+}
+
+function toggleOpt(row, val) {
+  const check = row.querySelector('.option-check');
+  check.classList.toggle('checked');
+}
+
+function toggleBirth() {
+  birthOn = !birthOn;
+  document.getElementById('birthToggle').classList.toggle('on', birthOn);
+  document.getElementById('birthFields').classList.toggle('visible', birthOn);
+}
+
+// ============ FILE UPLOAD ============
+async function handleFiles(files) {
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    if (uploadedImages.length >= 50) break;
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f);
+    });
+    uploadedImages.push({ dataUrl, name: f.name });
+  }
+  renderGrid();
+}
+
+function renderGrid() {
+  const grid = document.getElementById('gridPreview');
+  const count = document.getElementById('uploadCount');
+  let html = uploadedImages.map((img, i) => `
+    <div class="grid-cell" style="background-image:url(${img.dataUrl})">
+      <div class="grid-cell-num">${i+1}</div>
+      <div class="grid-cell-rm" onclick="removeImg(${i})">×</div>
+    </div>
+  `).join('');
+  if (uploadedImages.length < 50) {
+    html += `<div class="grid-cell grid-cell-add" onclick="document.getElementById('fileInput').click()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#c7c7c7" stroke-width="1.5"/>
+        <path d="M12 7v10M7 12h10" stroke="#c7c7c7" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span class="grid-cell-add-label">新增</span>
+    </div>`;
+  }
+  grid.innerHTML = html;
+  count.textContent = uploadedImages.length > 0 ? uploadedImages.length + ' 張截圖' : '';
+}
+
+function removeImg(i) { uploadedImages.splice(i, 1); renderGrid(); }
+
+// ============ ERROR HELPERS ============
+function showError(msg, targetId) {
+  const box = document.getElementById('errorBox');
+  document.getElementById('errorText').textContent = msg;
+  box.classList.add('active');
+  if (targetId) {
+    const el = document.getElementById(targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '2px solid var(--red)';
+      el.style.borderRadius = '4px';
+      setTimeout(() => { el.style.outline = ''; el.style.borderRadius = ''; }, 2000);
+      if (el.tagName === 'INPUT') el.focus();
+    }
+  }
+}
+function hideError() {
+  document.getElementById('errorBox').classList.remove('active');
+  document.getElementById('errorText').textContent = '';
+}
+
+// ============ START ANALYSIS ============
+async function startAnalysis() {
+  hideError();
+  window._pendingReport = null;
+  window._apiError = null;
+
+  const handle = document.getElementById('handle').value.replace('@','').trim();
+  if (!handle) { showError('請填寫 @帳號名稱', 'handle'); return; }
+  if (uploadedImages.length === 0) { showError('請至少上傳一張截圖', 'uploadZone'); return; }
+
+  const opts = {};
+  document.querySelectorAll('.option-check').forEach(c => {
+    opts[c.dataset.val] = c.classList.contains('checked');
+  });
+
+  const data = {
+    handle,
+    displayName: document.getElementById('displayName').value.trim(),
+    bio: document.getElementById('bio').value.trim(),
+    followers: document.getElementById('followers').value.trim(),
+    posts: document.getElementById('posts').value.trim(),
+    following: document.getElementById('following').value.trim(),
+    birthDate: birthOn ? document.getElementById('birthDate').value : '',
+    birthTime: birthOn ? document.getElementById('birthTime').value : '',
+    birthPlace: birthOn ? document.getElementById('birthPlace').value.trim() : '',
+    options: opts
+  };
+
+  startAnimation(handle);
+
+  const prompt = buildPrompt(data);
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // FIX: send up to 20 images (was 8)
+        images: uploadedImages.slice(0, 20).map(img => ({
+          data: img.dataUrl.split(',')[1],
+          mediaType: img.dataUrl.includes('image/png') ? 'image/png'
+                   : img.dataUrl.includes('image/webp') ? 'image/webp'
+                   : 'image/jpeg'
+        })),
+        prompt
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'HTTP ' + res.status);
+    }
+
+    const raw = await res.json();
+    if (!raw.success) throw new Error(raw.error || 'Analysis failed');
+    const result = raw.result;
+    if (!result.handle) result.handle = handle;
+    // FIX Bug6: attach avatar to report
+    result._avatarDataUrl = avatarDataUrl;
+    window._pendingReport = result;
+
+  } catch(e) {
+    window._apiError = e.message;
+  }
+}
+
+// ============ ANIMATION ============
+const TYPING_LINES = [
+  '正在閱讀這個人的畫面...',
+  '光線的選擇在說什麼...',
+  '文字節奏透露了個性...',
+  '構圖反映他怎麼看世界...',
+  '色調是無意識的簽名...',
+  '把所有線索放在一起...',
+  '對照命盤的軌跡...',
+  '寫下這個人的樣子...'
+];
+const PROGRESS_LABELS = [
+  'LOADING IMAGES', 'READING PIXELS', 'PARSING SUBTEXT',
+  'MAPPING PSYCHE', 'CROSS-REFERENCING', 'COMPOSING PROFILE', 'FINALIZING'
+];
+const CHIP_IDS = ['chip-mbti','chip-zodiac','chip-enn','chip-att','chip-money','chip-career'];
+
+function startAnimation(handle) {
+  const overlay = document.getElementById('animOverlay');
+  overlay.classList.add('active');
+  document.getElementById('animHandle').textContent = '@' + handle;
+  CHIP_IDS.forEach(id => document.getElementById(id)?.classList.remove('lit'));
+  const ring = document.getElementById('ringFill');
+  if (ring) ring.style.strokeDashoffset = '345';
+  const pFill = document.getElementById('animProgressFill');
+  if (pFill) pFill.style.width = '0%';
+
+  let li = 0, ci = 0;
+  const typEl = document.getElementById('animTyping');
+  function typeStep() {
+    const line = TYPING_LINES[li];
+    if (ci <= line.length) {
+      typEl.textContent = line.substring(0, ci++);
+      animTimers.push(setTimeout(typeStep, 55));
+    } else {
+      animTimers.push(setTimeout(() => {
+        function erase() {
+          if (ci > 0) {
+            typEl.textContent = line.substring(0, --ci);
+            animTimers.push(setTimeout(erase, 18));
+          } else {
+            li = (li + 1) % TYPING_LINES.length;
+            animTimers.push(setTimeout(typeStep, 300));
+          }
+        }
+        erase();
+      }, 1200));
+    }
+  }
+  typeStep();
+
+  const totalDur = 5000;
+  const steps = 60;
+  const stepMs = totalDur / steps;
+  let step = 0, labelIdx = 0, chipIdx = 0;
+  const labelEl = document.getElementById('animProgressLabel');
+
+  const progTimer = setInterval(() => {
+    step++;
+    const pct = Math.min(95, (step / steps) * 100);
+    if (pFill) pFill.style.width = pct + '%';
+    if (ring) ring.style.strokeDashoffset = 345 - (pct / 100 * 328);
+    const lIdx = Math.floor((pct / 100) * PROGRESS_LABELS.length);
+    if (lIdx !== labelIdx && lIdx < PROGRESS_LABELS.length) {
+      labelIdx = lIdx;
+      if (labelEl) labelEl.textContent = PROGRESS_LABELS[labelIdx];
+    }
+    const chipThreshold = Math.floor((CHIP_IDS.length + 1) / steps * step);
+    while (chipIdx < chipThreshold && chipIdx < CHIP_IDS.length) {
+      document.getElementById(CHIP_IDS[chipIdx])?.classList.add('lit');
+      chipIdx++;
+    }
+    if (step >= steps) clearInterval(progTimer);
+  }, stepMs);
+  animTimers.push(progTimer);
+
+  const startTime = Date.now();
+  const MIN_ANIM_MS = 5000;
+  const pollTimer = setInterval(() => {
+    if (window._pendingReport) {
+      clearInterval(pollTimer);
+      const elapsed = Date.now() - startTime;
+      const wait = Math.max(0, MIN_ANIM_MS - elapsed);
+      animTimers.push(setTimeout(() => {
+        if (pFill) pFill.style.width = '100%';
+        if (ring) ring.style.strokeDashoffset = '0';
+        if (labelEl) labelEl.textContent = 'COMPLETE';
+        CHIP_IDS.forEach(id => document.getElementById(id)?.classList.add('lit'));
+        setTimeout(() => finishAnimation(window._pendingReport), 600);
+      }, wait));
+    } else if (window._apiError) {
+      clearInterval(pollTimer);
+      clearAllTimers();
+      overlay.classList.remove('active');
+      showError('分析失敗：' + window._apiError);
+      window._apiError = null;
+    }
+  }, 400);
+  animTimers.push(pollTimer);
+}
+
+function skipAnimation() {
+  clearAllTimers();
+  document.getElementById('animOverlay').classList.remove('active');
+  if (window._pendingReport) {
+    const r = window._pendingReport;
+    window._pendingReport = null;
+    saveToArchive(r);
+    renderReport(r);
+  }
+}
+
+function finishAnimation(data) {
+  clearAllTimers();
+  document.getElementById('animOverlay').classList.remove('active');
+  window._pendingReport = null;
+  saveToArchive(data);
+  renderReport(data);
+}
+
+function clearAllTimers() {
+  animTimers.forEach(t => { clearTimeout(t); clearInterval(t); });
+  animTimers = [];
+}
+
+// ============ RENDER REPORT ============
+function renderReport(r) {
+  Object.values(charts).forEach(c => c && c.destroy && c.destroy());
+  charts = {};
+
+  const today = new Date().toISOString().slice(0,10);
+  const tagsHtml = (r.personality_tags || []).map(t => `<div class="rp-tag">${t}</div>`).join('');
+  const themesHtml = (r.content_themes || []).map(t => `<span class="tag-pill">${t}</span>`).join('');
+
+  const SVG = {
+    person: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="7" r="3"/><path d="M6 21v-1a6 6 0 0112 0v1"/></svg>`,
+    zodiac: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="12" r="9"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4"/></svg>`,
+    nine: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><polygon points="12,3 21,9 17.5,20 6.5,20 3,9"/><circle cx="12" cy="12" r="2.5"/></svg>`,
+    heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`,
+    money: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.1.9-2 2.5-2s2.5.9 2.5 2-1.1 2-2.5 2-2.5.9-2.5 2 .9 2 2.5 2 2.5-.9 2.5-2"/></svg>`,
+    star: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
+    career: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 21H3M21 21V7l-9-4-9 4v14M9 21v-6h6v6"/></svg>`,
+    summary: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>`,
+  };
+
+  // FIX Bug1: use named section IDs instead of sequential numbers
+  const storyItems = [
+    { svg: SVG.person, label: 'MBTI',  show: !!r.mbti,                        sec: 'sec-mbti' },
+    { svg: SVG.zodiac, label: '星座',   show: !!r.zodiac,                       sec: 'sec-zodiac' },
+    { svg: SVG.nine,   label: '九型',   show: !!r.enneagram,                    sec: 'sec-enneagram' },
+    { svg: SVG.heart,  label: '依附',   show: !!r.attachment,                   sec: 'sec-attachment' },
+    { svg: SVG.money,  label: '金錢觀', show: !!r.money,                        sec: 'sec-money' },
+    { svg: SVG.star,   label: '命盤',   show: !!(r.astro && r.astro.has_data),  sec: 'sec-astro' },
+    { svg: SVG.career, label: '職涯',   show: !!r.career,                       sec: 'sec-career' },
+    { svg: SVG.summary,label: '總評',   show: !!r.grand_summary,               sec: 'sec-summary' },
+  ].filter(s => s.show);
+
+  const storiesHtml = storyItems.map((s) => `
+    <div class="story-item" onclick="scrollToSection('${s.sec}')">
+      <div class="story-ring"><div class="story-ring-inner">${s.svg}</div></div>
+      <div class="story-name">${s.label}</div>
+    </div>
+  `).join('');
+
+  let sectionsHtml = '';
+
+  if (r.visual_style || r.content_themes) {
+    sectionsHtml += `
+      <div class="rp-card" id="sec-visual">
+        <div class="card-section-label">視覺風格與內容軸線</div>
+        <div class="tag-row">${themesHtml}</div>
+        <div class="card-body" style="margin-top:8px;">${r.visual_style || ''}</div>
+      </div>
+    `;
+  }
+
+  if (r.mbti) {
+    const m = r.mbti;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-mbti">
+        <div class="card-section-label">MBTI · Myers-Briggs</div>
+        <div class="card-big-value">${m.type || '—'}</div>
+        <div class="card-big-sub">${m.name || ''}</div>
+        ${renderMbtiBar('E 外向','I 內向', m.ei||50)}
+        ${renderMbtiBar('S 實感','N 直覺', m.sn||50)}
+        ${renderMbtiBar('T 思考','F 情感', m.tf||50)}
+        ${renderMbtiBar('J 判斷','P 感知', m.jp||50)}
+        <div class="card-body" style="margin-top:12px;">${m.reasoning||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.zodiac) {
+    const z = r.zodiac;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-zodiac">
+        <div class="card-section-label">星座推測</div>
+        <div class="card-big-value">${z.primary_guess||'—'}</div>
+        <div class="card-big-sub">次要：${z.secondary_guess||'—'} · ${z.element||''}象 · ${z.quality||''}星座</div>
+        <div class="card-body">${z.reasoning||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.enneagram) {
+    const en = r.enneagram;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-enneagram">
+        <div class="card-section-label">九型人格</div>
+        <div class="card-big-value">Type ${en.type||'—'} ${en.wing ? '· '+en.wing : ''}</div>
+        <div class="card-big-sub">${en.name||''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
+          <div style="background:var(--bg);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">驅動力</div>
+            <div style="font-size:13px;">${en.core_motivation||''}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;">核心恐懼</div>
+            <div style="font-size:13px;">${en.core_fear||''}</div>
+          </div>
+        </div>
+        <div class="card-body">${en.reasoning||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.attachment) {
+    const a = r.attachment;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-attachment">
+        <div class="card-section-label">愛情/依附風格</div>
+        <div class="card-big-value">${a.style||'—'}</div>
+        <div style="margin:14px 0 6px;">
+          <div class="att-row">
+            <div class="att-label">安全型</div>
+            <div class="att-track"><div class="att-fill" style="width:${a.score_secure||0}%;background:var(--green);"></div></div>
+            <div class="att-val">${a.score_secure||0}</div>
+          </div>
+          <div class="att-row">
+            <div class="att-label">焦慮型</div>
+            <div class="att-track"><div class="att-fill" style="width:${a.score_anxious||0}%;background:var(--red);"></div></div>
+            <div class="att-val">${a.score_anxious||0}</div>
+          </div>
+          <div class="att-row">
+            <div class="att-label">迴避型</div>
+            <div class="att-track"><div class="att-fill" style="width:${a.score_avoidant||0}%;background:var(--muted);"></div></div>
+            <div class="att-val">${a.score_avoidant||0}</div>
+          </div>
+        </div>
+        <div class="card-body">${a.reasoning||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.money) {
+    const mo = r.money;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-money">
+        <div class="card-section-label">金錢觀</div>
+        <div class="card-big-value">${mo.type||'—'}</div>
+        <div style="margin:12px 0 6px;">
+          ${renderMbtiBar('物質派','體驗派', mo.experience_vs_material||50)}
+          ${renderMbtiBar('計畫型','衝動型', mo.planner_vs_impulse||50)}
+          ${renderMbtiBar('儲蓄派','消費派', mo.saver_vs_spender||50)}
+        </div>
+        <div class="tag-row">${(mo.value_keywords||[]).map(t=>`<span class="tag-pill">${t}</span>`).join('')}</div>
+        <div class="card-body" style="margin-top:10px;">${mo.reasoning||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.astro && r.astro.has_data) {
+    const a = r.astro;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-astro">
+        <div class="card-section-label">星盤 / 紫微 / 八字</div>
+        <div class="astro-grid">
+          <div class="astro-cell"><div class="astro-cell-k">太陽</div><div class="astro-cell-v">${a.western_sun||'—'}</div></div>
+          <div class="astro-cell"><div class="astro-cell-k">上升</div><div class="astro-cell-v">${a.western_rising||'—'}</div></div>
+          <div class="astro-cell"><div class="astro-cell-k">月亮</div><div class="astro-cell-v">${a.western_moon||'—'}</div></div>
+          <div class="astro-cell"><div class="astro-cell-k">紫微主星</div><div class="astro-cell-v">${a.ziwei_main||'—'}</div></div>
+          <div class="astro-cell"><div class="astro-cell-k">八字日主</div><div class="astro-cell-v">${a.bazi_day_master||'—'}</div></div>
+          <div class="astro-cell"><div class="astro-cell-k">五行</div><div class="astro-cell-v">${a.five_elements||'—'}</div></div>
+        </div>
+        <div class="card-body" style="margin-top:12px;">${a.cross_reading||''}</div>
+      </div>
+    `;
+  }
+
+  if (r.career) {
+    const c = r.career;
+    sectionsHtml += `
+      <div class="rp-card" id="sec-career">
+        <div class="card-section-label">職涯方向</div>
+        <div style="font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--muted);margin-bottom:12px;">${c.current_read||''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:var(--bg);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.8px;margin-bottom:5px;">▲ 優勢</div>
+            ${(c.strengths||[]).map(s=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px dotted var(--border-light);">${s}</div>`).join('')}
+          </div>
+          <div style="background:var(--bg);border-radius:10px;padding:10px;">
+            <div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:0.8px;margin-bottom:5px;">△ 盲點</div>
+            ${(c.blind_spots||[]).map(s=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px dotted var(--border-light);">${s}</div>`).join('')}
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">未來方向</div>
+        ${(c.recommendations||[]).map(rec=>`
+          <div class="career-rec">
+            <div class="career-arrow">→</div>
+            <div><div class="career-rec-title">${rec.title}</div><div class="career-rec-desc">${rec.desc}</div></div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Radar chart
+  sectionsHtml += `
+    <div class="rp-card">
+      <div class="card-section-label">綜合人格雷達</div>
+      <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
+    </div>
+  `;
+
+  if (r.humanistic_essay) {
+    sectionsHtml += `
+      <div class="essay-card">
+        <div class="essay-kicker">Human Observation · ${today}</div>
+        <div class="essay-text">${r.humanistic_essay}</div>
+      </div>
+    `;
+  }
+
+  if (r.grand_summary) {
+    const g = r.grand_summary;
+    sectionsHtml += `
+      <div class="summary-card" id="sec-summary">
+        <div class="card-section-label">綜合分析與建議</div>
+        <div class="summary-headline">${g.headline||''}</div>
+        <div class="summary-body">${g.body||''}</div>
+        <div style="margin-top:14px;">
+          ${(g.key_recommendations||[]).map((rec,i)=>`
+            <div class="summary-rec-item">
+              <div class="summary-rec-num">${String(i+1).padStart(2,'0')}</div>
+              <div><div class="summary-rec-t">${rec.title}</div><div class="summary-rec-d">${rec.desc}</div></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // FIX Bug6: show avatar in report if uploaded
+  const avatarHtml = r._avatarDataUrl
+    ? `<img src="${r._avatarDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:54%;height:54%"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
+
+  // Carry over profile stats from input
+  const postVal = document.getElementById('posts')?.value;
+  const follVal = document.getElementById('followers')?.value;
+  const folwVal = document.getElementById('following')?.value;
+
+  document.getElementById('reportContent').innerHTML = `
+    <div class="rp-header">
+      <div class="rp-header-inner">
+        <div class="rp-back" onclick="switchPage('main')">‹</div>
+        <div class="rp-title">@${r.handle}</div>
+        <div class="rp-actions">
+          <span class="rp-action" onclick="window.print()">⬆</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rp-profile">
+      <div class="rp-prof-row">
+        <div class="rp-avatar"><div class="rp-avatar-inner">${avatarHtml}</div></div>
+        <div class="rp-stats">
+          ${postVal ? `<div class="rp-stat"><span class="rp-stat-num">${postVal}</span><span class="rp-stat-lbl">貼文</span></div>` : ''}
+          ${follVal ? `<div class="rp-stat"><span class="rp-stat-num">${follVal}</span><span class="rp-stat-lbl">粉絲</span></div>` : ''}
+          ${folwVal ? `<div class="rp-stat"><span class="rp-stat-num">${folwVal}</span><span class="rp-stat-lbl">追蹤中</span></div>` : ''}
+        </div>
+      </div>
+      <div class="rp-name">${r.handle}</div>
+      <div class="rp-tagline">${r.tagline||''}</div>
+      <div class="rp-tags">${tagsHtml}</div>
+      <div class="rp-btns">
+        <div class="rp-btn primary">側寫完成 ✓</div>
+        <div class="rp-btn" onclick="switchPage('history')">存入檔案庫</div>
+        <div class="rp-btn" onclick="window.print()">匯出</div>
+      </div>
+      <div class="rp-stories">
+        <div class="rp-stories-scroll">${storiesHtml}</div>
+      </div>
+    </div>
+
+    ${sectionsHtml}
+
+    <div style="height:20px;"></div>
+  `;
+
+  switchPage('report');
+  setTimeout(() => renderRadarChart(r), 200);
+}
+
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ============ MBTI BAR ============
+function renderMbtiBar(L, R, v) {
+  const leftWins = v < 50;
+  const fillPct = leftWins ? (50 - v) : (v - 50);
+  const fillLeft = leftWins ? (v) + '%' : '50%';
+  return `
+    <div class="mbti-pair">
+      <div class="mbti-labels">
+        <span class="${leftWins ? 'hi' : ''}">${L}</span>
+        <span class="${!leftWins ? 'hi' : ''}">${R}</span>
+      </div>
+      <div class="mbti-track" style="position:relative;">
+        <div style="position:absolute;height:100%;width:${fillPct}%;left:${fillLeft};background:var(--accent);border-radius:2px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+// ============ RADAR CHART ============
+function renderRadarChart(r) {
+  const c = document.getElementById('radarChart');
+  if (!c) return;
+  const m = r.mbti||{}, a = r.attachment||{}, mo = r.money||{};
+  charts.radar = new Chart(c, {
+    type: 'radar',
+    data: {
+      labels: ['內省', '直覺', '情感', '安全感', '體驗', '計畫'],
+      datasets: [{
+        data: [100-(m.ei||50), m.sn||50, m.tf||50, a.score_secure||50, mo.experience_vs_material||50, 100-(m.jp||50)],
+        backgroundColor: 'rgba(0,149,246,0.1)',
+        borderColor: '#0095f6',
+        borderWidth: 2,
+        pointBackgroundColor: '#0095f6',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: {
+        beginAtZero: true, max: 100,
+        grid: { color: '#efefef' },
+        angleLines: { color: '#dbdbdb' },
+        pointLabels: { font: { family: '-apple-system', size: 11, weight: '600' }, color: '#3d3d3d' },
+        ticks: { display: false }
+      }}
+    }
+  });
+}
+
+// ============ ARCHIVE (backend) ============
+let _archiveCache = [];
+
+async function saveToArchive(data) {
+  try {
+    await fetch('/api/profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle: data.handle, report: data })
+    });
+    await loadArchive();
+  } catch(e) {
+    _archiveCache = _archiveCache.filter(a => a.report.handle !== data.handle);
+    _archiveCache.unshift({ id: Date.now().toString(), handle: data.handle, date: new Date().toISOString(), report: data });
+  }
+}
+
+async function loadArchive() {
+  try {
+    const res = await fetch('/api/profiles');
+    const json = await res.json();
+    _archiveCache = (json.profiles || []).map(p => ({
+      id: p.id.toString(),
+      handle: p.handle,
+      date: p.created_at,
+      report: p.report
+    }));
+  } catch(e) {}
+  return _archiveCache;
+}
+
+function getArchive() { return _archiveCache; }
+
+async function renderHistory(filter='') {
+  const list = document.getElementById('historyList');
+  // FIX Bug2: spin keyframe now defined in CSS
+  list.innerHTML = '<div class="empty-state"><div class="empty-state-icon" style="font-size:24px;animation:spin 1s linear infinite;display:inline-block;">⟳</div></div>';
+
+  const arc = await loadArchive();
+  const f = filter.toLowerCase();
+  const filtered = filter ? arc.filter(a => {
+    const r = a.report;
+    return [a.handle, r.tagline, r.humanistic_essay, r.mbti?.type,
+            r.zodiac?.primary_guess, r.enneagram?.name,
+            (r.personality_tags||[]).join(' ')].join(' ').toLowerCase().includes(f);
+  }) : arc;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.5" stroke-linecap="round" width="40" height="40"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></div>
+      <div class="empty-state-title">${filter ? '沒有符合' : '還沒有側寫'}</div>
+      <div class="empty-state-sub">${filter ? '換個關鍵字試試' : '從「建立側寫」開始'}</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(a => {
+    const r = a.report;
+    const snippet = (r.tagline||r.humanistic_essay||'').substring(0,40).replace(/\n/g,' ');
+    const d = new Date(a.date);
+    const tags = [r.mbti?.type, r.zodiac?.primary_guess].filter(Boolean);
+    const avatarInner = r._avatarDataUrl
+      ? `<img src="${r._avatarDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:54%;height:54%"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
+    return `
+      <div class="hist-list-item" onclick="viewReport('${a.id}')">
+        <div class="hist-item-avatar"><div class="hist-item-avatar-inner">${avatarInner}</div></div>
+        <div class="hist-item-body">
+          <div class="hist-item-handle">@${a.handle}</div>
+          <div class="hist-item-snippet">${snippet}...</div>
+          <div class="hist-item-tags">${tags.map(t=>`<span class="hist-item-tag">${t}</span>`).join('')}</div>
+        </div>
+        <div class="hist-item-right">
+          <div class="hist-item-date">${d.getMonth()+1}/${d.getDate()}</div>
+          <span class="hist-item-del" onclick="event.stopPropagation();deleteEntry('${a.id}')">🗑</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function viewReport(id) {
+  const e = getArchive().find(a => a.id === id);
+  if (e) renderReport(e.report);
+}
+
+async function deleteEntry(id) {
+  if (!confirm('刪除這筆側寫？')) return;
+  try { await fetch('/api/profiles/' + id, { method: 'DELETE' }); } catch(e) {}
+  _archiveCache = _archiveCache.filter(a => a.id !== id);
+  renderHistory();
+}
+
+async function populateCompareSelects() {
+  const arc = await loadArchive();
+  ['compareA','compareB'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— 選擇 —</option>' + arc.map(a => `<option value="${a.id}">@${a.handle}</option>`).join('');
+    if (cur) sel.value = cur;
+  });
+}
+
+async function runCompare() {
+  const aId = document.getElementById('compareA').value;
+  const bId = document.getElementById('compareB').value;
+  const out = document.getElementById('compareOutput');
+  if (!aId || !bId || aId === bId) {
+    out.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--red);">請選擇兩個不同的帳號</div>';
+    return;
+  }
+  const arc = getArchive();
+  const a = arc.find(x => x.id === aId)?.report;
+  const b = arc.find(x => x.id === bId)?.report;
+  if (!a || !b) return;
+
+  const rows = [
+    ['MBTI', (a.mbti?.type||'—') + ' ' + (a.mbti?.name||''), (b.mbti?.type||'—') + ' ' + (b.mbti?.name||'')],
+    ['星座', a.zodiac?.primary_guess||'—', b.zodiac?.primary_guess||'—'],
+    ['九型', 'Type ' + (a.enneagram?.type||'—'), 'Type ' + (b.enneagram?.type||'—')],
+    ['依附', a.attachment?.style||'—', b.attachment?.style||'—'],
+    ['金錢觀', a.money?.type||'—', b.money?.type||'—'],
+  ];
+
+  out.innerHTML = `
+    <div style="background:var(--white);border-bottom:1px solid var(--border);padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="font-size:15px;font-weight:700;">@${a.handle}</div>
+      <div style="font-size:15px;font-weight:700;">@${b.handle}</div>
+    </div>
+    <div style="background:var(--white);">
+      ${rows.map(([k,va,vb]) => `
+        <div class="compare-row-grid">
+          <div class="compare-cell"><div class="compare-cell-k">${k}</div><div class="compare-cell-v">${va}</div></div>
+          <div class="compare-cell"><div class="compare-cell-k">${k}</div><div class="compare-cell-v">${vb}</div></div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="background:var(--white);margin-top:8px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;">
+      <div style="padding:14px 12px;border-right:1px solid var(--border-light);">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">觀察</div>
+        <div style="font-family:'Fraunces',serif;font-size:13px;line-height:1.7;">${(a.humanistic_essay||'').replace(/\n\n/g,'<br><br>').substring(0,300)}...</div>
+      </div>
+      <div style="padding:14px 12px;">
+        <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">觀察</div>
+        <div style="font-family:'Fraunces',serif;font-size:13px;line-height:1.7;">${(b.humanistic_essay||'').replace(/\n\n/g,'<br><br>').substring(0,300)}...</div>
+      </div>
+    </div>
+  `;
+}
+
+// ============ RESET ============
+function resetAndStart() {
+  ['handle','displayName','bio','followers','posts','following','birthDate','birthTime','birthPlace'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  uploadedImages = [];
+  renderGrid();
+  window._pendingReport = null;
+  window._apiError = null;
+  if (birthOn) toggleBirth();
+  hideError();
+  // FIX Bug5: reset all option checkboxes back to checked
+  document.querySelectorAll('.option-check').forEach(c => c.classList.add('checked'));
+  // FIX Bug3/6: reset avatar
+  avatarDataUrl = null;
+  document.getElementById('avatarPreview').innerHTML =
+    `<svg viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="width:52%;height:52%;"><circle cx="12" cy="8.5" r="3.5"/><path d="M4.5 20.5c0-4 3.3-7 7.5-7s7.5 3 7.5 7"/></svg>`;
+  switchPage('main');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
