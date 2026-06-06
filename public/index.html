@@ -1022,7 +1022,7 @@ function toggleBirth() {
 }
 
 // ============ FILE UPLOAD ============
-function compressImage(file, maxSize = 512, quality = 0.5) {
+function compressImage(file, maxSize = 400, quality = 0.45) {
   return new Promise((res, rej) => {
     const timer = setTimeout(() => rej(new Error('Timeout')), 15000);
     const r = new FileReader();
@@ -1149,7 +1149,7 @@ async function startAnalysis() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        images: uploadedImages.slice(0, 8).map(img => ({
+        images: uploadedImages.slice(0, 5).map(img => ({
           data: img.dataUrl.split(',')[1],
           mediaType: img.dataUrl.includes('image/png') ? 'image/png'
                    : img.dataUrl.includes('image/webp') ? 'image/webp'
