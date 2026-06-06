@@ -43,7 +43,7 @@ app.post('/api/analyze', async (req, res) => {
   if (!images || !prompt) return res.status(400).json({ error: 'Missing images or prompt' });
 
   const content = [];
-  for (const img of images.slice(0, 10)) {
+  for (const img of images.slice(0, 8)) {
     content.push({
       type: 'image',
       source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.data }
