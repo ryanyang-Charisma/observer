@@ -1024,13 +1024,16 @@ function toggleBirth() {
 // ============ FILE UPLOAD ============
 function compressImage(file, maxSize = 512, quality = 0.5) {
   return new Promise((res, rej) => {
+    const timer = setTimeout(() => rej(new Error('Timeout')), 15000);
     const r = new FileReader();
-    r.onerror = rej;
+    r.onerror = e => { clearTimeout(timer); rej(e); };
     r.onload = e => {
       const img = new Image();
-      img.onerror = rej;
+      img.onerror = err => { clearTimeout(timer); rej(err); };
       img.onload = () => {
+        clearTimeout(timer);
         let w = img.width, h = img.height;
+        if (!w || !h) { rej(new Error('Invalid dimensions')); return; }
         if (w > maxSize || h > maxSize) {
           if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
           else { w = Math.round(w * maxSize / h); h = maxSize; }
@@ -1047,13 +1050,21 @@ function compressImage(file, maxSize = 512, quality = 0.5) {
 }
 
 async function handleFiles(files) {
-  for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
+  const arr = Array.from(files);
+  for (const f of arr) {
     if (uploadedImages.length >= 50) break;
-    const dataUrl = await compressImage(f);
-    uploadedImages.push({ dataUrl, name: f.name });
+    if (f.size === 0) continue;
+    try {
+      const dataUrl = await compressImage(f);
+      uploadedImages.push({ dataUrl, name: f.name });
+    } catch(e) {
+      console.warn('Skip image:', f.name, e.message);
+    }
   }
   renderGrid();
+  // Reset so iOS allows re-selecting the same photos
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.value = '';
 }
 
 function renderGrid() {
