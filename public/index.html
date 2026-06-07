@@ -1022,15 +1022,18 @@ function toggleBirth() {
 }
 
 // ============ FILE UPLOAD ============
-function compressImage(file, maxSize = 800, quality = 0.6) {
+function compressImage(file, maxSize = 400, quality = 0.45) {
   return new Promise((res, rej) => {
+    const timer = setTimeout(() => rej(new Error('Timeout')), 15000);
     const r = new FileReader();
-    r.onerror = rej;
+    r.onerror = e => { clearTimeout(timer); rej(e); };
     r.onload = e => {
       const img = new Image();
-      img.onerror = rej;
+      img.onerror = err => { clearTimeout(timer); rej(err); };
       img.onload = () => {
+        clearTimeout(timer);
         let w = img.width, h = img.height;
+        if (!w || !h) { rej(new Error('Invalid dimensions')); return; }
         if (w > maxSize || h > maxSize) {
           if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
           else { w = Math.round(w * maxSize / h); h = maxSize; }
@@ -1047,13 +1050,21 @@ function compressImage(file, maxSize = 800, quality = 0.6) {
 }
 
 async function handleFiles(files) {
-  for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
+  const arr = Array.from(files);
+  for (const f of arr) {
     if (uploadedImages.length >= 50) break;
-    const dataUrl = await compressImage(f);
-    uploadedImages.push({ dataUrl, name: f.name });
+    if (f.size === 0) continue;
+    try {
+      const dataUrl = await compressImage(f);
+      uploadedImages.push({ dataUrl, name: f.name });
+    } catch(e) {
+      console.warn('Skip image:', f.name, e.message);
+    }
   }
   renderGrid();
+  // Reset so iOS allows re-selecting the same photos
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.value = '';
 }
 
 function renderGrid() {
@@ -1138,8 +1149,7 @@ async function startAnalysis() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // FIX: send up to 20 images (was 8)
-        images: uploadedImages.slice(0, 10).map(img => ({
+        images: uploadedImages.slice(0, 5).map(img => ({
           data: img.dataUrl.split(',')[1],
           mediaType: img.dataUrl.includes('image/png') ? 'image/png'
                    : img.dataUrl.includes('image/webp') ? 'image/webp'
@@ -1154,13 +1164,32 @@ async function startAnalysis() {
       throw new Error(errData.error || 'HTTP ' + res.status);
     }
 
-    const raw = await res.json();
-    if (!raw.success) throw new Error(raw.error || 'Analysis failed');
-    const result = raw.result;
-    if (!result.handle) result.handle = handle;
-    // FIX Bug6: attach avatar to report
-    result._avatarDataUrl = avatarDataUrl;
-    window._pendingReport = result;
+    // Read SSE stream to avoid Railway's 60-second timeout
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        let evt;
+        try { evt = JSON.parse(raw); } catch(_) { continue; }
+        if (evt.error) throw new Error(evt.error);
+        if (evt.success && evt.result) {
+          const result = evt.result;
+          if (!result.handle) result.handle = handle;
+          result._avatarDataUrl = avatarDataUrl;
+          window._pendingReport = result;
+        }
+      }
+    }
 
   } catch(e) {
     window._apiError = e.message;
