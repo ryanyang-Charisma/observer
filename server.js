@@ -212,7 +212,7 @@ app.post('/api/computer-analyze', async (req, res) => {
   }, 15000);
 
   const tools = [{
-    type: 'computer_20241022',
+    type: 'computer_20250124',
     name: 'computer',
     display_width_px: 1080,
     display_height_px: 1920
@@ -230,7 +230,7 @@ app.post('/api/computer-analyze', async (req, res) => {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'computer-use-2024-10-22'
+        'anthropic-beta': 'computer-use-2025-01-24'
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
@@ -316,14 +316,22 @@ app.post('/api/computer-analyze', async (req, res) => {
         const toolResults = [];
         for (const tu of toolUseBlocks) {
           if (tu.name === 'computer' && tu.input.action === 'screenshot') {
-            res.write(`data: ${JSON.stringify({ type: 'viewing', index: imageIdx, total: limited.length })}\n\n`);
-            const img = limited[Math.min(imageIdx, limited.length - 1)];
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: tu.id,
-              content: [{ type: 'image', source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.data } }]
-            });
-            imageIdx = Math.min(imageIdx + 1, limited.length - 1);
+            if (imageIdx < limited.length) {
+              res.write(`data: ${JSON.stringify({ type: 'viewing', index: imageIdx, total: limited.length })}\n\n`);
+              const img = limited[imageIdx++];
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: [{ type: 'image', source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.data } }]
+              });
+            } else {
+              // All screenshots shown — signal Claude to finalize
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: [{ type: 'text', text: '已無更多截圖。請根據已查看的所有截圖，立即回傳純 JSON 分析結果。' }]
+              });
+            }
           } else {
             toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: [{ type: 'text', text: 'Done.' }] });
           }

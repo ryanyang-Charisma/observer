@@ -1148,6 +1148,46 @@ function hideError() {
 }
 
 // ============ START ANALYSIS ============
+async function callAnalysisEndpoint(endpoint, prompt, images, handle) {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images, prompt })
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'HTTP ' + res.status);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (!raw) continue;
+      let evt;
+      try { evt = JSON.parse(raw); } catch(_) { continue; }
+      if (evt.error) throw new Error(evt.error);
+      if (evt.type === 'viewing') {
+        const lbl = document.getElementById('animProgressLabel');
+        if (lbl) lbl.textContent = `查看截圖 ${evt.index + 1} / ${evt.total}`;
+      }
+      if (evt.success && evt.result) {
+        const result = evt.result;
+        if (!result.handle) result.handle = handle;
+        result._avatarDataUrl = avatarDataUrl;
+        window._pendingReport = result;
+      }
+    }
+  }
+}
+
 async function startAnalysis() {
   hideError();
   window._pendingReport = null;
@@ -1184,53 +1224,18 @@ async function startAnalysis() {
              : 'image/jpeg'
   }));
 
-  const prompt = buildComputerPrompt(data);
-
+  // Try computer use first; fall back to direct image analysis on any error
   try {
-    const res = await fetch('/api/computer-analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images, prompt })
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'HTTP ' + res.status);
-    }
-
-    // Read SSE stream — handles both viewing events and final result
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const raw = line.slice(6).trim();
-        if (!raw) continue;
-        let evt;
-        try { evt = JSON.parse(raw); } catch(_) { continue; }
-        if (evt.error) throw new Error(evt.error);
-        if (evt.type === 'viewing') {
-          const lbl = document.getElementById('animProgressLabel');
-          if (lbl) lbl.textContent = `查看截圖 ${evt.index + 1} / ${evt.total}`;
-        }
-        if (evt.success && evt.result) {
-          const result = evt.result;
-          if (!result.handle) result.handle = handle;
-          result._avatarDataUrl = avatarDataUrl;
-          window._pendingReport = result;
-        }
-      }
-    }
-
+    await callAnalysisEndpoint('/api/computer-analyze', buildComputerPrompt(data), images, handle);
   } catch(e) {
-    window._apiError = e.message;
+    console.warn('Computer use failed, falling back to direct analysis:', e.message);
+    const lbl = document.getElementById('animProgressLabel');
+    if (lbl) lbl.textContent = 'RETRYING...';
+    try {
+      await callAnalysisEndpoint('/api/analyze', buildPrompt(data), images, handle);
+    } catch(e2) {
+      window._apiError = e2.message;
+    }
   }
 }
 
