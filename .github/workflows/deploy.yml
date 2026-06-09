@@ -15,7 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Railway CLI and deploy
+      - name: Deploy to Railway
         run: |
-          npm install -g @railway/cli
-          railway up --detach
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Installing Railway CLI..."
+          npm install -g @railway/cli 2>&1
+          echo "Railway version: $(railway --version 2>&1 || echo 'not found')"
+          echo "Testing auth..."
+          railway whoami 2>&1 || echo "whoami failed"
+          echo "Deploying..."
+          railway up --detach 2>&1
