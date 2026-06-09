@@ -193,6 +193,182 @@ app.get('/api/profiles', async (req, res) => {
   }
 });
 
+// ── POST /api/computer-analyze ───────────────────
+// Uses Claude computer use to view uploaded screenshots one by one
+app.post('/api/computer-analyze', async (req, res) => {
+  const { images, prompt } = req.body;
+  if (!images || !prompt) return res.status(400).json({ error: 'Missing images or prompt' });
+
+  const limited = images.slice(0, 5);
+  console.log(`Computer-analyze: ${limited.length} images queued`);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) res.write(': keepalive\n\n');
+  }, 15000);
+
+  const tools = [{
+    type: 'computer_20250124',
+    name: 'computer',
+    display_width_px: 1080,
+    display_height_px: 1920
+  }];
+
+  const messages = [{ role: 'user', content: prompt }];
+  let imageIdx = 0;
+  const MAX_TURNS = 10;
+  let finalResult = null;
+
+  async function callClaude() {
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'computer-use-2025-01-24'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        stream: true,
+        system: '你是一位人格分析專家。你有一台電腦，上面顯示著 Instagram 截圖。請使用截圖工具（screenshot action）逐張查看所有截圖，完成後回傳純 JSON 分析結果，直接從 { 開始，到 } 結束，不可有任何 markdown 或 JSON 以外的文字。',
+        messages,
+        tools
+      })
+    });
+
+    if (!apiRes.ok) {
+      const errData = await apiRes.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `HTTP ${apiRes.status}`);
+    }
+
+    let textContent = '';
+    let toolUseBlocks = [];
+    let currentType = null;
+    let currentId = null;
+    let currentName = null;
+    let inputJsonBuf = '';
+    let stopReason = null;
+    let lineBuffer = '';
+
+    await new Promise((resolve, reject) => {
+      apiRes.body.on('data', chunk => {
+        lineBuffer += chunk.toString();
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(raw);
+            if (evt.type === 'content_block_start') {
+              currentType = evt.content_block?.type;
+              if (currentType === 'tool_use') {
+                currentId = evt.content_block.id;
+                currentName = evt.content_block.name;
+                inputJsonBuf = '';
+              }
+            } else if (evt.type === 'content_block_delta') {
+              if (evt.delta?.type === 'text_delta') textContent += evt.delta.text;
+              else if (evt.delta?.type === 'input_json_delta') inputJsonBuf += evt.delta.partial_json;
+            } else if (evt.type === 'content_block_stop') {
+              if (currentType === 'tool_use' && currentId) {
+                let input = {};
+                try { input = JSON.parse(inputJsonBuf); } catch (_) {}
+                toolUseBlocks.push({ id: currentId, name: currentName, input });
+                currentId = null; currentName = null; inputJsonBuf = '';
+              }
+              currentType = null;
+            } else if (evt.type === 'message_delta') {
+              stopReason = evt.delta?.stop_reason;
+            } else if (evt.type === 'message_stop') {
+              resolve();
+            }
+          } catch (_) {}
+        }
+      });
+      apiRes.body.on('error', reject);
+      apiRes.body.on('end', resolve);
+    });
+
+    return { textContent, toolUseBlocks, stopReason };
+  }
+
+  try {
+    for (let turn = 0; turn < MAX_TURNS && !finalResult; turn++) {
+      const { textContent, toolUseBlocks, stopReason } = await callClaude();
+
+      const assistantContent = [];
+      if (textContent) assistantContent.push({ type: 'text', text: textContent });
+      for (const tu of toolUseBlocks) {
+        assistantContent.push({ type: 'tool_use', id: tu.id, name: tu.name, input: tu.input });
+      }
+
+      if (stopReason === 'tool_use' && toolUseBlocks.length > 0) {
+        messages.push({ role: 'assistant', content: assistantContent });
+
+        const toolResults = [];
+        for (const tu of toolUseBlocks) {
+          if (tu.name === 'computer' && tu.input.action === 'screenshot') {
+            if (imageIdx < limited.length) {
+              res.write(`data: ${JSON.stringify({ type: 'viewing', index: imageIdx, total: limited.length })}\n\n`);
+              const img = limited[imageIdx++];
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: [{ type: 'image', source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.data } }]
+              });
+            } else {
+              // All screenshots shown — signal Claude to finalize
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: [{ type: 'text', text: '已無更多截圖。請根據已查看的所有截圖，立即回傳純 JSON 分析結果。' }]
+              });
+            }
+          } else {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: [{ type: 'text', text: 'Done.' }] });
+          }
+        }
+        messages.push({ role: 'user', content: toolResults });
+      } else {
+        // end_turn: parse JSON result from textContent
+        let result;
+        try {
+          result = JSON.parse(textContent.trim());
+        } catch (_) {
+          const s = textContent.indexOf('{'), e = textContent.lastIndexOf('}');
+          if (s === -1 || e === -1) throw new Error('回傳格式錯誤，請重試');
+          result = JSON.parse(textContent.substring(s, e + 1));
+        }
+        finalResult = result;
+      }
+    }
+
+    clearInterval(heartbeat);
+    if (finalResult) {
+      res.write(`data: ${JSON.stringify({ success: true, result: finalResult })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({ error: '分析未完成，請重試' })}\n\n`);
+    }
+    res.end();
+
+  } catch (err) {
+    clearInterval(heartbeat);
+    console.error('Computer-analyze error:', err.message);
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.end();
+    }
+  }
+});
+
 // ── DELETE /api/profiles/:id ──────────────────────
 app.delete('/api/profiles/:id', async (req, res) => {
   try {
