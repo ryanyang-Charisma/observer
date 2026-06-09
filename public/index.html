@@ -921,7 +921,42 @@ html,body { background: var(--bg); color: var(--ink); font-family: -apple-system
 </div>
 
 <script>
-// ============ PROMPT BUILDER ============
+// ============ PROMPT BUILDERS ============
+// For computer use: Claude will call screenshot tool to view each image
+function buildComputerPrompt(data) {
+  const opts = data.options;
+  let s = [];
+  s.push('你是一位融合心理學、占星、命理、人格類型學的觀察者。我要你分析 Instagram 帳號 @' + data.handle + '。');
+  s.push('請使用電腦截圖工具（screenshot action）逐張查看畫面，查看完所有截圖後建立完整人物側寫。');
+  s.push('\n## 已知資料');
+  if (data.displayName) s.push('- 顯示名稱：' + data.displayName);
+  s.push('- 帳號：@' + data.handle);
+  if (data.bio) s.push('- 自介：' + data.bio.replace(/\n/g,' / '));
+  if (data.followers) s.push('- 粉絲：' + data.followers);
+  if (data.posts) s.push('- 貼文數：' + data.posts);
+  if (data.following) s.push('- 追蹤中：' + data.following);
+  if (data.birthDate) {
+    s.push('- 出生日期：' + data.birthDate);
+    if (data.birthTime) s.push('- 出生時間：' + data.birthTime);
+    if (data.birthPlace) s.push('- 出生地：' + data.birthPlace);
+  }
+  s.push('\n## 任務');
+  s.push('使用截圖工具查看所有畫面後，以繁體中文回應，嚴格使用以下 JSON 格式（直接從 { 開始）：\n{');
+  s.push('"handle":"' + data.handle + '","tagline":"一句話定性這個人","personality_tags":["3-5個短語"],"visual_style":"200字視覺品味描述","content_themes":["軸線1","軸線2","軸線3"],');
+  if(opts.mbti) s.push('"mbti":{"type":"如INFP","name":"中文名","ei":50,"sn":50,"tf":50,"jp":50,"reasoning":"120-180字"},');
+  if(opts.zodiac) s.push('"zodiac":{"primary_guess":"'+(data.birthDate?'依出生日期':'從風格反推')+'","secondary_guess":"次要","element":"火/土/風/水","quality":"本位/固定/變動","reasoning":"120-180字"},');
+  if(opts.enneagram) s.push('"enneagram":{"type":"1-9","name":"中文名","wing":"如4w5","core_motivation":"核心驅動","core_fear":"核心恐懼","reasoning":"120-180字"},');
+  if(opts.attachment) s.push('"attachment":{"style":"安全/焦慮/迴避/混亂型","score_secure":50,"score_anxious":30,"score_avoidant":20,"reasoning":"120-180字"},');
+  if(opts.money) s.push('"money":{"type":"消費型態","experience_vs_material":60,"planner_vs_impulse":40,"saver_vs_spender":45,"value_keywords":["3-5關鍵字"],"reasoning":"120-180字"},');
+  if(data.birthDate && data.birthDate.length > 0) s.push('"astro":{"has_data":true,"western_sun":"太陽星座","western_rising":"上升","western_moon":"月亮","ziwei_main":"紫微主星","bazi_day_master":"八字日主","five_elements":"五行偏盛偏衰","cross_reading":"200-300字命盤與IG交叉"},');
+  else s.push('"astro":{"has_data":false},');
+  if(opts.career) s.push('"career":{"current_read":"職涯觀察","strengths":["優勢1","優勢2","優勢3"],"blind_spots":["盲點1","盲點2"],"recommendations":[{"title":"方向","desc":"說明"},{"title":"方向","desc":"說明"},{"title":"方向","desc":"說明"}]},');
+  s.push('"humanistic_essay":"250-400字人文觀察，像跟朋友聊這個人，可\\\\n\\\\n分段"' + (opts.summary?',':''));
+  if(opts.summary) s.push('"grand_summary":{"headline":"一句話總結","body":"300-450字綜合分析","key_recommendations":[{"title":"建議","desc":"100字內"},{"title":"建議","desc":"100字內"},{"title":"建議","desc":"100字內"}]}');
+  s.push('}');
+  return s.join('\n');
+}
+
 function buildPrompt(data) {
   const opts = data.options;
   let s = [];
@@ -1142,21 +1177,20 @@ async function startAnalysis() {
 
   startAnimation(handle);
 
-  const prompt = buildPrompt(data);
+  const images = uploadedImages.slice(0, 5).map(img => ({
+    data: img.dataUrl.split(',')[1],
+    mediaType: img.dataUrl.includes('image/png') ? 'image/png'
+             : img.dataUrl.includes('image/webp') ? 'image/webp'
+             : 'image/jpeg'
+  }));
+
+  const prompt = buildComputerPrompt(data);
 
   try {
-    const res = await fetch('/api/analyze', {
+    const res = await fetch('/api/computer-analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        images: uploadedImages.slice(0, 5).map(img => ({
-          data: img.dataUrl.split(',')[1],
-          mediaType: img.dataUrl.includes('image/png') ? 'image/png'
-                   : img.dataUrl.includes('image/webp') ? 'image/webp'
-                   : 'image/jpeg'
-        })),
-        prompt
-      })
+      body: JSON.stringify({ images, prompt })
     });
 
     if (!res.ok) {
@@ -1164,7 +1198,7 @@ async function startAnalysis() {
       throw new Error(errData.error || 'HTTP ' + res.status);
     }
 
-    // Read SSE stream to avoid Railway's 60-second timeout
+    // Read SSE stream — handles both viewing events and final result
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
@@ -1182,6 +1216,10 @@ async function startAnalysis() {
         let evt;
         try { evt = JSON.parse(raw); } catch(_) { continue; }
         if (evt.error) throw new Error(evt.error);
+        if (evt.type === 'viewing') {
+          const lbl = document.getElementById('animProgressLabel');
+          if (lbl) lbl.textContent = `查看截圖 ${evt.index + 1} / ${evt.total}`;
+        }
         if (evt.success && evt.result) {
           const result = evt.result;
           if (!result.handle) result.handle = handle;
