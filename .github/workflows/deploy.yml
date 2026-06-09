@@ -8,21 +8,24 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_PROJECT_ID: 17630808-22fa-43ec-b29a-2747bed2081d
-      RAILWAY_SERVICE_ID: dc27ca09-e277-486a-9b22-4e8a06c0d683
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create Railway project config
+        run: |
+          mkdir -p .railway
+          cat > .railway/config.json << 'EOF'
+          {
+            "projectId": "17630808-22fa-43ec-b29a-2747bed2081d",
+            "environment": "1f921133-446f-43c7-b918-2b00c1e71686",
+            "serviceId": "dc27ca09-e277-486a-9b22-4e8a06c0d683"
+          }
+          EOF
+
       - name: Deploy to Railway
         run: |
-          echo "Node version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          echo "Installing Railway CLI..."
-          npm install -g @railway/cli 2>&1
-          echo "Railway version: $(railway --version 2>&1 || echo 'not found')"
-          echo "Testing auth..."
-          railway whoami 2>&1 || echo "whoami failed"
-          echo "Deploying..."
-          railway up --detach 2>&1
+          npm install -g @railway/cli
+          railway whoami
+          railway up --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
