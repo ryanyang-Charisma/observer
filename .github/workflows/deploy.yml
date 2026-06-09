@@ -14,18 +14,18 @@ jobs:
       - name: Create Railway project config
         run: |
           mkdir -p .railway
-          cat > .railway/config.json << 'EOF'
-          {
-            "projectId": "17630808-22fa-43ec-b29a-2747bed2081d",
-            "environment": "1f921133-446f-43c7-b918-2b00c1e71686",
-            "serviceId": "dc27ca09-e277-486a-9b22-4e8a06c0d683"
-          }
-          EOF
+          printf '{"projectId":"17630808-22fa-43ec-b29a-2747bed2081d","environment":"1f921133-446f-43c7-b918-2b00c1e71686","serviceId":"dc27ca09-e277-486a-9b22-4e8a06c0d683"}' > .railway/config.json
+          cat .railway/config.json
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Test auth
+        run: railway whoami
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy to Railway
-        run: |
-          npm install -g @railway/cli
-          railway whoami
-          railway up --detach
+        run: railway up --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
