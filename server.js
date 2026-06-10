@@ -114,6 +114,7 @@ app.post('/api/analyze', async (req, res) => {
             fullText += evt.delta.text;
           } else if (evt.type === 'message_stop') {
             clearInterval(heartbeat);
+            console.log('Claude raw response (first 500):', fullText.substring(0, 500));
             let result;
             try {
               result = JSON.parse(fullText.trim());
@@ -121,6 +122,7 @@ app.post('/api/analyze', async (req, res) => {
               const start = fullText.indexOf('{');
               const end = fullText.lastIndexOf('}');
               if (start === -1 || end === -1) {
+                console.error('No JSON braces found in response');
                 res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
                 res.end();
                 return;
@@ -128,6 +130,7 @@ app.post('/api/analyze', async (req, res) => {
               try {
                 result = JSON.parse(fullText.substring(start, end + 1));
               } catch (e) {
+                console.error('JSON parse error:', e.message, 'text:', fullText.substring(start, start+200));
                 res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
                 res.end();
                 return;
