@@ -80,10 +80,10 @@ app.post('/api/analyze', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        model: 'claude-haiku-4-5',
+        max_tokens: 2000,
         stream: true,
-        system: '你是一位人格分析專家。請只回傳純 JSON，直接從 { 開始，到 } 結束。不可有任何 markdown、程式碼區塊、或 JSON 以外的文字。',
+        system: '你是人格分析專家。只回傳純 JSON，直接從 { 開始到 } 結束，禁止任何 markdown 或說明文字。',
         messages: [{ role: 'user', content }]
       })
     });
