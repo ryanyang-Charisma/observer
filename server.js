@@ -81,9 +81,9 @@ app.post('/api/analyze', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
-        max_tokens: 2000,
+        max_tokens: 4000,
         stream: true,
-        system: '你是人格分析專家。只回傳純 JSON，直接從 { 開始到 } 結束，禁止任何 markdown 或說明文字。',
+        system: '你是人格分析專家。你的回覆必須且只能是一個純 JSON 物件。絕對禁止使用 ```json 或任何 markdown。第一個字必須是 {，最後一個字必須是 }。',
         messages: [{ role: 'user', content }]
       })
     });
@@ -114,13 +114,16 @@ app.post('/api/analyze', async (req, res) => {
             fullText += evt.delta.text;
           } else if (evt.type === 'message_stop') {
             clearInterval(heartbeat);
-            console.log('Claude raw response (first 500):', fullText.substring(0, 500));
+            console.log('Claude raw response (first 300):', fullText.substring(0, 300));
+            // Strip markdown code block if present
+            let cleaned = fullText.trim();
+            cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
             let result;
             try {
-              result = JSON.parse(fullText.trim());
+              result = JSON.parse(cleaned);
             } catch (_) {
-              const start = fullText.indexOf('{');
-              const end = fullText.lastIndexOf('}');
+              const start = cleaned.indexOf('{');
+              const end = cleaned.lastIndexOf('}');
               if (start === -1 || end === -1) {
                 console.error('No JSON braces found in response');
                 res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
@@ -128,9 +131,9 @@ app.post('/api/analyze', async (req, res) => {
                 return;
               }
               try {
-                result = JSON.parse(fullText.substring(start, end + 1));
+                result = JSON.parse(cleaned.substring(start, end + 1));
               } catch (e) {
-                console.error('JSON parse error:', e.message, 'text:', fullText.substring(start, start+200));
+                console.error('JSON parse error:', e.message, 'text:', cleaned.substring(start, start+200));
                 res.write(`data: ${JSON.stringify({ error: '回傳格式錯誤，請重試' })}\n\n`);
                 res.end();
                 return;
