@@ -1224,18 +1224,11 @@ async function startAnalysis() {
              : 'image/jpeg'
   }));
 
-  // Try computer use first; fall back to direct image analysis on any error
+  // Direct image analysis
   try {
-    await callAnalysisEndpoint('/api/computer-analyze', buildComputerPrompt(data), images, handle);
+    await callAnalysisEndpoint('/api/analyze', buildPrompt(data), images, handle);
   } catch(e) {
-    console.warn('Computer use failed, falling back to direct analysis:', e.message);
-    const lbl = document.getElementById('animProgressLabel');
-    if (lbl) lbl.textContent = 'RETRYING...';
-    try {
-      await callAnalysisEndpoint('/api/analyze', buildPrompt(data), images, handle);
-    } catch(e2) {
-      window._apiError = e2.message;
-    }
+    window._apiError = e.message;
   }
 }
 
